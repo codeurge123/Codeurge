@@ -215,7 +215,7 @@ export function TypingTest() {
             >
               ← Back
             </button>
-            <span>⌨️</span> Codeurge
+            Codeurge
           </div>
           <button
             className="nb-btn nb-btn-white nb-btn-sm"
