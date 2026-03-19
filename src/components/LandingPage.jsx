@@ -56,8 +56,8 @@ export function LandingPage() {
             {/* Navbar */}
             <nav className="bg-white border-b px-10 py-4 flex justify-between items-center shadow-[0_1px_0_#eee]">
                 <div className="flex items-center gap-3 text-2xl font-extrabold">
-                    Codeurge
                     <span className="w-6 h-6 rounded-full bg-yellow-400 border-2 border-black" />
+                    Codeurge
                 </div>
 
                 <div className="flex gap-3">
