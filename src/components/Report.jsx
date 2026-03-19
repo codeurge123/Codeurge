@@ -12,23 +12,12 @@ import {
 import { NB } from "../constants/theme.js";
 import { injectCSS } from "../utils/styles.js";
 
-
 const CustomTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div
-      style={{
-        background: NB.white,
-        border: `2px solid ${NB.black}`,
-        borderRadius: 4,
-        padding: "8px 14px",
-        boxShadow: `3px 3px 0 ${NB.black}`,
-        fontFamily: "'Space Grotesk',sans-serif",
-        fontSize: 12,
-      }}
-    >
-      <div style={{ color: NB.grayText }}>t+{payload[0].payload.t}s</div>
-      <div style={{ fontWeight: 800, fontSize: 16 }}>
+    <div className="bg-[#FAFAF8] border-2 border-[#0D0D0D] rounded px-3 py-2 shadow-[3px_3px_0_#0D0D0D] font-[Space_Grotesk] text-xs">
+      <div className="text-gray-500">t+{payload[0].payload.t}s</div>
+      <div className="font-extrabold text-base">
         {payload[0].value} WPM
       </div>
     </div>
@@ -39,15 +28,19 @@ export function Report() {
   const navigate = useNavigate();
   const location = useLocation();
   const data = location.state;
+
   useEffect(() => {
     injectCSS();
   }, []);
 
   const { wpm, accuracy, duration, lang, wpmHistory, totalTyped, correct } =
     data;
+
   const errors = totalTyped - correct;
+
   const grade =
     wpm >= 80 ? "S" : wpm >= 60 ? "A" : wpm >= 45 ? "B" : wpm >= 30 ? "C" : "D";
+
   const gradeColors = {
     S: "#00C853",
     A: "#0057FF",
@@ -55,6 +48,7 @@ export function Report() {
     C: "#FF8800",
     D: NB.red,
   };
+
   const gradeLabels = {
     S: "Elite Tier",
     A: "Excellent",
@@ -62,6 +56,7 @@ export function Report() {
     C: "Fair",
     D: "Beginner",
   };
+
   const gc = gradeColors[grade];
 
   const chartData =
@@ -74,41 +69,16 @@ export function Report() {
         ];
 
   return (
-    <div
-      className="nb-grid"
-      style={{
-        minHeight: "100vh",
-        fontFamily: "'Space Grotesk',sans-serif",
-        color: NB.black,
-      }}
-    >
-      <div
-        style={{ maxWidth: 720, margin: "0 auto", padding: "24px 24px 60px" }}
-      >
+    <div className="min-h-screen font-[Space_Grotesk] text-[#0D0D0D]">
+      <div className="max-w-[720px] mx-auto px-6 pt-6 pb-14">
+        
         {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 28,
-            paddingBottom: 16,
-            borderBottom: `2px solid ${NB.black}`,
-          }}
-        >
-          <div
-            style={{
-              fontWeight: 800,
-              fontSize: 20,
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
+        <div className="flex items-center justify-between mb-7 pb-4 border-b-2 border-black">
+          <div className="font-extrabold text-xl flex items-center gap-2">
             Codeurge — Results
           </div>
           <button
-            className="nb-btn nb-btn-white nb-btn-sm"
+            className="border-2 border-black px-3 py-1 text-sm bg-white shadow-[3px_3px_0_black]  active:translate-x-1 rounded active:translate-y-1 active:shadow-[1px_1px_0_black] transition-all duration-200"
             onClick={() => navigate("/")}
           >
             ← Home
@@ -116,97 +86,49 @@ export function Report() {
         </div>
 
         {/* Grade hero */}
-        <div
-          style={{
-            display: "flex",
-            gap: 20,
-            marginBottom: 24,
-            alignItems: "stretch",
-          }}
-        >
+        <div className="flex gap-5 mb-6 items-stretch">
           <div
-            style={{
-              background: gc,
-              border: `2px solid ${NB.black}`,
-              borderRadius: 4,
-              boxShadow: `6px 6px 0 ${NB.black}`,
-              padding: "24px 28px",
-              minWidth: 120,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
+            className="border-2 border-black rounded shadow-[6px_6px_0_black] px-7 py-6 min-w-[120px] flex flex-col items-center justify-center"
+            style={{ background: gc }}
           >
             <div
-              style={{
-                fontSize: 72,
-                fontWeight: 800,
-                lineHeight: 1,
-                color: grade === "B" ? NB.black : NB.white,
-              }}
+              className={`text-[72px] font-extrabold leading-none ${
+                grade === "B" ? "text-black" : "text-white"
+              }`}
             >
               {grade}
             </div>
             <div
-              style={{
-                fontWeight: 700,
-                fontSize: 13,
-                color:
-                  grade === "B" ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.75)",
-                marginTop: 4,
-              }}
+              className={`font-bold text-xs mt-1 ${
+                grade === "B"
+                  ? "text-black/60"
+                  : "text-white/75"
+              }`}
             >
               {gradeLabels[grade]}
             </div>
           </div>
-          <div
-            style={{
-              flex: 1,
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 10,
-            }}
-          >
+
+          <div className="flex-1 grid grid-cols-2 gap-2.5">
             {[
-              { label: "WPM", value: wpm, color: NB.black },
+              { label: "WPM", value: wpm, color: "text-black" },
               {
                 label: "Accuracy",
                 value: `${accuracy}%`,
-                color: accuracy > 90 ? NB.green : "#E6A000",
+                color: accuracy > 90 ? "text-green-600" : "text-yellow-600",
               },
-              { label: "Chars", value: totalTyped, color: NB.black },
+              { label: "Chars", value: totalTyped, color: "text-black" },
               {
                 label: "Errors",
                 value: errors,
-                color: errors === 0 ? NB.green : NB.red,
+                color: errors === 0 ? "text-green-600" : "text-red-600",
               },
             ].map((st, i) => (
-              <div
-                key={i}
-                className="nb-stat-box"
-                style={{ padding: "12px 16px" }}
-              >
-                <div
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: NB.grayText,
-                    textTransform: "uppercase",
-                    letterSpacing: 1,
-                    marginBottom: 3,
-                  }}
-                >
+              <div key={i} className="border-2 border-black shadow-[3px_3px_0_black] px-4 py-3">
+                <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
                   {st.label}
                 </div>
-                <div
-                  style={{
-                    fontSize: 28,
-                    fontWeight: 800,
-                    color: st.color,
-                    lineHeight: 1,
-                  }}
-                >
+                <div className={`text-2xl font-extrabold ${st.color}`}>
                   {st.value}
                 </div>
               </div>
@@ -215,68 +137,24 @@ export function Report() {
         </div>
 
         {/* Extra stats */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 10,
-            marginBottom: 20,
-          }}
-        >
-          <div
-            className="nb-card"
-            style={{
-              padding: "14px 18px",
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-            }}
-          >
-            <span style={{ fontSize: 24 }}>⏱</span>
+        <div className="grid grid-cols-2 gap-2.5 mb-5">
+          <div className="border-2 border-black shadow-[3px_3px_0_black] px-5 py-4 flex items-center gap-3">
+            <span className="text-2xl">⏱</span>
             <div>
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: NB.grayText,
-                  textTransform: "uppercase",
-                  letterSpacing: 1,
-                }}
-              >
+              <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
                 Duration
               </div>
-              <div style={{ fontSize: 22, fontWeight: 800 }}>{duration}s</div>
+              <div className="text-xl font-extrabold">{duration}s</div>
             </div>
           </div>
-          <div
-            className="nb-card"
-            style={{
-              padding: "14px 18px",
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-            }}
-          >
-            <span style={{ fontSize: 24 }}>🌐</span>
+
+          <div className="border-2 border-black shadow-[3px_3px_0_black] px-5 py-4 flex items-center gap-3">
+            <span className="text-2xl">🌐</span>
             <div>
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: NB.grayText,
-                  textTransform: "uppercase",
-                  letterSpacing: 1,
-                }}
-              >
+              <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
                 Language
               </div>
-              <div
-                style={{
-                  fontSize: 22,
-                  fontWeight: 800,
-                  textTransform: "capitalize",
-                }}
-              >
+              <div className="text-xl font-extrabold capitalize">
                 {lang}
               </div>
             </div>
@@ -284,138 +162,81 @@ export function Report() {
         </div>
 
         {/* Chart */}
-        <div
-          className="nb-card"
-          style={{ marginBottom: 16, overflow: "hidden" }}
-        >
-          <div
-            style={{
-              borderBottom: `2px solid ${NB.black}`,
-              padding: "12px 18px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <span style={{ fontWeight: 700, fontSize: 14 }}>
-              📈 WPM Over Time
-            </span>
-            <span className="nb-tag" style={{ fontSize: 11 }}>
-              {lang}
-            </span>
+        <div className="border-2 border-black shadow-[3px_3px_0_black] mb-4 overflow-hidden">
+          <div className="border-b-2 border-black px-5 py-3 flex justify-between items-center">
+            <span className="font-bold text-sm">WPM Over Time</span>
+            <span className="text-xs border-2 border-black rounded-full shadow-[1px_1px_0_black] px-2 py-0.5">{lang}</span>
           </div>
-          <div style={{ padding: "16px 4px 8px" }}>
+
+          <div className="px-1 pt-4 pb-2">
             <ResponsiveContainer width="100%" height={200}>
-              <AreaChart
-                data={chartData}
-                margin={{ top: 5, right: 20, left: -10, bottom: 0 }}
-              >
+              <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="nb-grad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor={NB.yellow} stopOpacity={0.5} />
                     <stop offset="95%" stopColor={NB.yellow} stopOpacity={0} />
                   </linearGradient>
                 </defs>
+
                 <CartesianGrid strokeDasharray="4 4" stroke={NB.gray} />
-                <XAxis
-                  dataKey="t"
-                  tickFormatter={(v) => `${v}s`}
-                  tick={{
-                    fill: NB.grayText,
-                    fontSize: 11,
-                    fontFamily: "'Space Grotesk',sans-serif",
-                  }}
-                  stroke={NB.grayMid}
-                />
-                <YAxis
-                  tick={{
-                    fill: NB.grayText,
-                    fontSize: 11,
-                    fontFamily: "'Space Grotesk',sans-serif",
-                  }}
-                  stroke={NB.grayMid}
-                />
+
+                <XAxis dataKey="t" tickFormatter={(v) => `${v}s`} />
+                <YAxis />
+
                 <Tooltip content={<CustomTooltip />} />
+
                 <Area
                   type="monotone"
                   dataKey="wpm"
                   stroke={NB.black}
                   strokeWidth={2.5}
                   fill="url(#nb-grad)"
-                  dot={{ fill: NB.black, r: 3, strokeWidth: 0 }}
                 />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Accuracy bar */}
-        <div
-          className="nb-card"
-          style={{ padding: "18px 20px", marginBottom: 24 }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              fontWeight: 700,
-              fontSize: 14,
-              marginBottom: 12,
-            }}
-          >
+        {/* Accuracy */}
+        <div className="border-2 border-black shadow-[3px_3px_0_black] px-5 py-5 mb-6">
+          <div className="flex justify-between font-bold text-sm mb-3">
             <span>Accuracy Breakdown</span>
-            <span style={{ color: accuracy > 90 ? NB.green : "#E6A000" }}>
+            <span
+              className={accuracy > 90 ? "text-green-600" : "text-yellow-600"}
+            >
               {accuracy}%
             </span>
           </div>
-          <div
-            style={{
-              height: 16,
-              background: NB.gray,
-              borderRadius: 2,
-              border: `2px solid ${NB.black}`,
-              overflow: "hidden",
-              marginBottom: 10,
-            }}
-          >
+
+          <div className="h-4 bg-gray-200 border-2 border-black overflow-hidden mb-2">
             <div
-              style={{
-                height: "100%",
-                width: `${accuracy}%`,
-                background: accuracy > 90 ? NB.green : NB.yellow,
-                transition: "width 0.8s ease",
-              }}
+              className={`h-full ${
+                accuracy > 90 ? "bg-green-500" : "bg-yellow-400"
+              } transition-all duration-700`}
+              style={{ width: `${accuracy}%` }}
             />
           </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              fontSize: 13,
-              fontWeight: 600,
-              color: NB.grayText,
-            }}
-          >
-            <span>✅ {correct} correct</span>
-            <span style={{ color: errors > 0 ? NB.red : NB.grayText }}>
+
+          <div className="flex justify-between text-sm font-semibold text-gray-500">
+            <span>{correct} correct</span>
+            <span className={errors > 0 ? "text-red-600" : ""}>
               ❌ {errors} errors
             </span>
           </div>
         </div>
 
         {/* Actions */}
-        <div style={{ display: "flex", gap: 12 }}>
+        <div className="flex gap-3">
           <button
-            className="nb-btn nb-btn-yellow nb-btn-lg"
+            className="flex-1 border-2 border-black bg-yellow-400 py-3 cursor-pointer hover:bg-yellow-500 font-bold shadow-[3px_3px_0_black] hover:shadow-[5px_5px_0_black] active:translate-x-1 rounded-md active:translate-y-1 active:shadow-[1px_1px_0_black] transition-all duration-200 "
             onClick={() => navigate("/test")}
-            style={{ flex: 1, justifyContent: "center" }}
           >
             ↺ Try Again
           </button>
+
           <button
-            className="nb-btn nb-btn-white nb-btn-lg"
+            className="flex-1 border-2 border-black bg-white py-3 cursor-pointer hover:bg-gray-100 font-bold shadow-[3px_3px_0_black] rounded-md hover:shadow-[5px_5px_0_black] active:translate-x-1 active:translate-y-1 active:shadow-[1px_1px_0_black] transition-all duration-200"
             onClick={() => navigate("/")}
-            style={{ flex: 1, justifyContent: "center" }}
           >
             ← Home
           </button>

@@ -7,10 +7,10 @@ import { getUniqueSnippet, calcWPM, calcAcc } from "../utils/functions.js";
 
 export function TypingTest() {
   const navigate = useNavigate();
+
   useEffect(() => {
     injectCSS();
   }, []);
-
   const [lang, setLang] = useState("javascript");
   const [duration, setDuration] = useState(60);
   const [snippet, setSnippet] = useState(() => getUniqueSnippet("javascript"));
@@ -21,29 +21,43 @@ export function TypingTest() {
   const [wpmHistory, setWpmHistory] = useState([]);
   const [errorSet, setErrorSet] = useState(new Set());
   const [correct, setCorrect] = useState(0);
+
   const inputRef = useRef(null);
+  const timeLeftRef = useRef(duration);
   const timerRef = useRef(null);
   const wpmRef = useRef(null);
   const elapsedRef = useRef(0);
   const correctRef = useRef(0);
   const doneRef = useRef(false);
-  const stateRef = useRef({
-    input: "",
-    snippet: "",
-    duration: 60,
-    wpmHistory: [],
-  });
 
+  /* ================= CURSOR BLINK ================= */
   useEffect(() => {
-    stateRef.current = { input, snippet, duration, wpmHistory };
-  }, [input, snippet, duration, wpmHistory]);
+    timeLeftRef.current = duration;
+    setTimeLeft(duration);
+  }, [duration]);
+  useEffect(() => {
+    const style = document.createElement("style");
+    style.innerHTML = `
+      @keyframes blinkCursor {
+        0%,50%,100% { opacity: 1; }
+        25%,75% { opacity: 0; }
+      }
+      .cursor-blink {
+        animation: blinkCursor 1.5s step-end infinite;
+      }
+    `;
+    document.head.appendChild(style);
+  }, []);
 
+  /* ================= FINISH ================= */
   const doFinish = useCallback(() => {
     if (doneRef.current) return;
     doneRef.current = true;
+
     clearInterval(timerRef.current);
     clearInterval(wpmRef.current);
     setFinished(true);
+
     const reportData = {
       wpm: calcWPM(correct, elapsedRef.current || 1),
       accuracy: calcAcc(correct, input.length),
@@ -53,20 +67,20 @@ export function TypingTest() {
       totalTyped: input.length,
       correct,
     };
+
     navigate("/report", { state: reportData });
   }, [lang, navigate, correct, input.length, duration, wpmHistory]);
 
-  const finishRef = useRef(doFinish);
-  useEffect(() => {
-    finishRef.current = doFinish;
-  }, [doFinish]);
-
+  /* ================= RESET ================= */
   const reset = useCallback((l, d) => {
     clearInterval(timerRef.current);
     clearInterval(wpmRef.current);
+
     doneRef.current = false;
     elapsedRef.current = 0;
     correctRef.current = 0;
+    timeLeftRef.current = d;
+
     setSnippet(getUniqueSnippet(l));
     setInput("");
     setStarted(false);
@@ -74,6 +88,7 @@ export function TypingTest() {
     setFinished(false);
     setWpmHistory([]);
     setErrorSet(new Set());
+
     setTimeout(() => inputRef.current?.focus(), 60);
   }, []);
 
@@ -81,18 +96,29 @@ export function TypingTest() {
     setTimeout(() => inputRef.current?.focus(), 100);
   }, []);
 
+  /* ================= TIMER ================= */
   useEffect(() => {
     if (!started) return;
+
     timerRef.current = setInterval(() => {
       elapsedRef.current += 1;
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          setTimeout(() => finishRef.current(), 0);
-          return 0;
-        }
-        return prev - 1;
-      });
+
+      timeLeftRef.current -= 1;
+
+      if (timeLeftRef.current <= 0) {
+        timeLeftRef.current = 0;
+        setTimeLeft(0);
+
+        clearInterval(timerRef.current);
+        clearInterval(wpmRef.current);
+
+        setTimeout(() => doFinish(), 0);
+        return;
+      }
+
+      setTimeLeft(timeLeftRef.current);
     }, 1000);
+
     wpmRef.current = setInterval(() => {
       setWpmHistory((prev) => [
         ...prev,
@@ -102,29 +128,36 @@ export function TypingTest() {
         },
       ]);
     }, 2000);
+
     return () => {
       clearInterval(timerRef.current);
       clearInterval(wpmRef.current);
     };
-  }, [started]);
+  }, [started, doFinish]);
 
+  /* ================= INDENTATION ================= */
   const getNextLineIndent = (pos) => {
     const nextNewline = snippet.indexOf("\n", pos);
-    if (nextNewline === -1 || nextNewline === snippet.length - 1) return "";
+    if (nextNewline === -1) return "";
+
     let indent = "";
     let i = nextNewline + 1;
+
     while (i < snippet.length && (snippet[i] === " " || snippet[i] === "\t")) {
       indent += snippet[i];
-      i += 1;
+      i++;
     }
+
     return indent;
   };
 
+  /* ================= INPUT ================= */
   const handleKeyDown = (e) => {
     if (e.key === "Tab") {
       e.preventDefault();
       processInput(input + "    ");
     }
+
     if (e.key === "Enter") {
       e.preventDefault();
       processInput(input + "\n" + getNextLineIndent(input.length));
@@ -133,92 +166,67 @@ export function TypingTest() {
 
   const processInput = (val) => {
     if (doneRef.current || val.length > snippet.length) return;
+
     if (!started && val.length > 0) setStarted(true);
+
     setInput(val);
+
     const errs = new Set();
     let correctCount = 0;
+
     for (let i = 0; i < val.length; i++) {
       if (val[i] === snippet[i]) correctCount++;
       else errs.add(i);
     }
+
     correctRef.current = correctCount;
     setCorrect(correctCount);
     setErrorSet(errs);
+
     if (val === snippet) setTimeout(() => doFinish(), 0);
   };
 
-  const timerPct = (timeLeft / duration) * 100;
-  const timerColor =
-    timerPct > 50 ? NB.green : timerPct > 25 ? NB.yellow : NB.red;
   const cursorPos = input.length;
   const currentWPM = started ? calcWPM(correct, duration - timeLeft || 1) : 0;
   const currentAcc = input.length > 0 ? calcAcc(correct, input.length) : 100;
-  const accColor =
-    currentAcc > 90 ? NB.green : currentAcc > 75 ? "#E6A000" : NB.red;
 
   return (
-    <div
-      className="nb-grid"
-      style={{
-        minHeight: "100vh",
-        fontFamily: "'Space Grotesk',sans-serif",
-        color: NB.black,
-      }}
-    >
+    <div className="min-h-screen font-[Space_Grotesk] text-black">
+
+      {/* Hidden input */}
       <textarea
         ref={inputRef}
         value={input}
         onChange={(e) => processInput(e.target.value)}
         onKeyDown={handleKeyDown}
-        style={{
-          position: "fixed",
-          opacity: 0,
-          width: 1,
-          height: 1,
-          top: 0,
-          left: 0,
-          pointerEvents: "none",
-        }}
-        autoComplete="off"
-        autoCorrect="off"
-        autoCapitalize="off"
-        spellCheck="false"
+        className="fixed opacity-0 w-[1px] h-[1px] top-0 left-0 pointer-events-none"
       />
 
       <div
-        style={{ maxWidth: 860, margin: "0 auto", padding: "24px 24px 60px" }}
+        className="max-w-[860px] mx-auto px-6 pt-6 pb-14"
         onClick={() => inputRef.current?.focus()}
       >
+
         {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 24,
-            paddingBottom: 16,
-            borderBottom: `2px solid ${NB.black}`,
-          }}
-        >
-          <div
-            style={{
-              fontWeight: 800,
-              fontSize: 20,
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
+        <div className="flex justify-between items-center mb-6 pb-4 border-b-2 border-black">
+          <div className="flex items-center gap-2 text-xl font-extrabold">
             <button
-              className="nb-btn nb-btn-white nb-btn-sm"
+              className="border-2 border-black px-3 py-1 text-sm bg-white font-bold
+              shadow-[4px_4px_0_black]
+              hover:-translate-x-[2px] hover:-translate-y-[2px]
+              active:translate-x-[4px] active:translate-y-[4px] rounded active:shadow-none transition-all duration-200 mr-4"
               onClick={() => navigate("/")}
             >
               ← Back
             </button>
             Codeurge
           </div>
+
           <button
-            className="nb-btn nb-btn-white nb-btn-sm"
+            className="border-2 border-black px-3 py-1 text-sm bg-white font-bold
+            shadow-[4px_4px_0_black] rounded
+            hover:-translate-x-[2px] hover:-translate-y-[2px]
+            active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-200"
             onClick={() => reset(lang, duration)}
           >
             ↺ Reset
@@ -226,33 +234,25 @@ export function TypingTest() {
         </div>
 
         {/* Controls */}
-        <div style={{ marginBottom: 20 }}>
-          <div
-            style={{
-              fontWeight: 700,
-              fontSize: 12,
-              color: NB.grayText,
-              letterSpacing: 1,
-              textTransform: "uppercase",
-              marginBottom: 8,
-            }}
-          >
+        <div className="mb-5">
+          <div className="text-xs font-bold text-gray-500 uppercase mb-2">
             Language
           </div>
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 8,
-              marginBottom: 16,
-            }}
-          >
+
+          <div className="flex flex-wrap gap-2 mb-4">
             {LANGUAGES.map((l) => (
               <button
                 key={l.id}
-                className={`nb-btn nb-btn-sm ${
-                  lang === l.id ? "nb-btn-active" : "nb-btn-white"
-                }`}
+                className={`
+                border-2 border-black rounded px-3 cursor-pointer py-1 text-sm font-bold transition
+
+                ${lang === l.id
+                    ? "bg-yellow-400 translate-x-[3px] translate-y-[3px] shadow-[2px_2px_0_black]"
+                    : "bg-white shadow-[3px_3px_0_black] hover:-translate-x-[2px] hover:-translate-y-[2px] hover:shadow-[5px_5px_0_black]"
+                  }
+
+                active:translate-x-[3px] active:translate-y-[3px] active:shadow-none
+                `}
                 onClick={() => {
                   setLang(l.id);
                   reset(l.id, duration);
@@ -262,25 +262,25 @@ export function TypingTest() {
               </button>
             ))}
           </div>
-          <div
-            style={{
-              fontWeight: 700,
-              fontSize: 12,
-              color: NB.grayText,
-              letterSpacing: 1,
-              textTransform: "uppercase",
-              marginBottom: 8,
-            }}
-          >
+
+          <div className="text-xs font-bold text-gray-500 uppercase mb-2">
             Duration
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
+
+          <div className="flex gap-2">
             {DURATIONS.map((d) => (
               <button
                 key={d}
-                className={`nb-btn nb-btn-sm ${
-                  duration === d ? "nb-btn-active" : "nb-btn-white"
-                }`}
+                className={`
+                border-2 border-black rounded px-3 py-1 text-sm font-bold transition
+
+                ${duration === d
+                    ? "bg-yellow-400 translate-x-[3px] translate-y-[3px] shadow-[2px_2px_0_black]"
+                    : "bg-white shadow-[3px_3px_0_black] hover:-translate-x-[2px] hover:-translate-y-[2px] hover:shadow-[5px_5px_0_black]"
+                  }
+
+                active:translate-x-[3px] active:translate-y-[3px] active:shadow-none
+                `}
                 onClick={() => {
                   setDuration(d);
                   reset(lang, d);
@@ -292,226 +292,67 @@ export function TypingTest() {
           </div>
         </div>
 
-        {/* Live stats */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr",
-            gap: 12,
-            marginBottom: 16,
-          }}
-        >
-          <div className="nb-stat-box">
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: NB.grayText,
-                textTransform: "uppercase",
-                letterSpacing: 1,
-                marginBottom: 4,
-              }}
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          {[{ label: "WPM", value: currentWPM },
+          { label: "Accuracy", value: `${currentAcc}%` },
+          { label: "Time Left", value: `${timeLeft}s` }
+          ].map((item, i) => (
+            <div key={i}
+              className="border-2 rounded border-black px-4 py-3
+              shadow-[3px_3px_0_black]
+              hover:-translate-x-[3px] hover:-translate-y-[3px]
+              hover:shadow-[6px_6px_0_black] transition-all duration-150"
             >
-              WPM
+              <div className="text-xs font-bold text-gray-500 uppercase mb-1">
+                {item.label}
+              </div>
+              <div className="text-3xl font-extrabold">{item.value}</div>
             </div>
-            <div
-              style={{
-                fontSize: 40,
-                fontWeight: 800,
-                color: NB.black,
-                lineHeight: 1,
-              }}
-            >
-              {currentWPM}
-            </div>
-          </div>
-          <div className="nb-stat-box">
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: NB.grayText,
-                textTransform: "uppercase",
-                letterSpacing: 1,
-                marginBottom: 4,
-              }}
-            >
-              Accuracy
-            </div>
-            <div
-              style={{
-                fontSize: 40,
-                fontWeight: 800,
-                color: accColor,
-                lineHeight: 1,
-              }}
-            >
-              {currentAcc}%
-            </div>
-          </div>
-          <div
-            className="nb-stat-box"
-            style={{ background: timerPct < 25 ? "#FFF0EE" : NB.white }}
-          >
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: NB.grayText,
-                textTransform: "uppercase",
-                letterSpacing: 1,
-                marginBottom: 4,
-              }}
-            >
-              Time Left
-            </div>
-            <div
-              style={{
-                fontSize: 40,
-                fontWeight: 800,
-                color: timerColor,
-                lineHeight: 1,
-              }}
-            >
-              {timeLeft}s
-            </div>
-            <div
-              style={{
-                marginTop: 8,
-                height: 6,
-                background: NB.gray,
-                borderRadius: 2,
-                border: `1px solid ${NB.black}`,
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  height: "100%",
-                  width: `${timerPct}%`,
-                  background: timerColor,
-                  transition: "width 1s linear",
-                }}
-              />
-            </div>
-          </div>
+          ))}
         </div>
 
-        {/* Code display */}
-        <div className="nb-input-wrap" style={{ marginBottom: 12 }}>
-          {/* Progress bar */}
-          <div
-            style={{
-              marginBottom: 14,
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-            }}
-          >
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: NB.grayText,
-                textTransform: "uppercase",
-                letterSpacing: 1,
-              }}
-            >
-              {lang} · {input.length}/{snippet.length} chars
-            </span>
-            <div
-              style={{
-                flex: 1,
-                height: 6,
-                background: NB.gray,
-                borderRadius: 2,
-                border: `1px solid ${NB.black}`,
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  height: "100%",
-                  width: `${(input.length / snippet.length) * 100}%`,
-                  background: NB.yellow,
-                  transition: "width 0.15s",
-                }}
-              />
-            </div>
-          </div>
+        {/* Code */}
+        <div className="border-2 rounded border-black shadow-[4px_4px_0_black] p-4 min-h-[180px] whitespace-pre leading-8 overflow-x-auto">
+          {snippet.split("").map((ch, i) => {
+            const isTyped = i < cursorPos;
+            const isErr = errorSet.has(i);
+            const isCursor = i === cursorPos;
 
-          {/* Characters */}
-          <div
-            style={{
-              fontSize: 14,
-              lineHeight: 2.2,
-              whiteSpace: "pre",
-              overflowX: "auto",
-              minHeight: 180,
-              userSelect: "none",
-              textAlign: "left",
-            }}
-          >
-            {snippet.split("").map((ch, i) => {
-              const isTyped = i < cursorPos;
-              const isCursor = i === cursorPos;
-              const isErr = errorSet.has(i);
-              return (
+            return (
+              <span key={i} className="relative">
+
+                {isCursor && (
+                  <span className="absolute left-0 top-0 w-[2px] h-full bg-black cursor-blink" />
+                )}
+
                 <span
-                  key={i}
-                  style={{
-                    color: isCursor
-                      ? NB.white
-                      : isTyped
+                  className={
+                    isTyped
                       ? isErr
-                        ? NB.red
-                        : NB.black
-                      : NB.grayMid,
-                    background: isCursor
-                      ? NB.black
-                      : isErr
-                      ? "#FFEEEE"
-                      : "transparent",
-                    borderRadius: isCursor ? 2 : 0,
-                    outline: isCursor ? `2px solid ${NB.black}` : "none",
-                    fontWeight: isTyped && !isErr ? 600 : 400,
-                    textDecoration: isErr ? "underline wavy #FF3B30" : "none",
-                  }}
+                        ? "text-red-500 underline decoration-wavy"
+                        : "text-black font-semibold"
+                      : "text-gray-400"
+                  }
                 >
                   {ch}
                 </span>
-              );
-            })}
-            {cursorPos >= snippet.length && (
-              <span
-                style={{
-                  borderLeft: `2px solid ${NB.black}`,
-                  animation: "blink 1s step-end infinite",
-                }}
-              >
-                {" "}
               </span>
-            )}
-          </div>
+            );
+          })}
+
+          {cursorPos === snippet.length && (
+            <span className="inline-block w-[2px] h-5 bg-black cursor-blink ml-[1px]" />
+          )}
         </div>
 
-        <div
-          style={{
-            textAlign: "center",
-            fontSize: 12,
-            fontWeight: 600,
-            color: NB.grayText,
-            textTransform: "uppercase",
-            letterSpacing: 1,
-          }}
-        >
+        {/* Footer */}
+        <div className="text-center text-xs font-semibold text-gray-500 mt-4">
           {!started
-            ? "Click here and start typing to begin"
+            ? "Click and start typing"
             : finished
-            ? "Complete! Generating report…"
-            : `⚡ ${errorSet.size} error${
-                errorSet.size === 1 ? "" : "s"
-              } · position ${cursorPos}`}
+              ? "Complete!"
+              : `${errorSet.size} errors`}
         </div>
       </div>
     </div>
