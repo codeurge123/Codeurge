@@ -52,7 +52,7 @@ export const CSS = `
     line-height: 1;
   }
   .nb-btn:hover { transform: translate(-1px,-1px); box-shadow: 5px 5px 0 ${NB.black}; }
-  .nb-btn:active { transform: translate(3px,3px); box-shadow: 1px 1px 0 ${NB.black}; }
+  .nb-btn:active { transform: translate(4px,4px); box-shadow: 1px 1px 0 ${NB.black}; }
 
   .nb-btn-yellow { background:${NB.yellow}; color:${NB.black}; }
   .nb-btn-white  { background:${NB.white}; color:${NB.black}; }

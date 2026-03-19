@@ -105,7 +105,7 @@ export function Report() {
               gap: 8,
             }}
           >
-            <span>⌨️</span> Codeurge — Results
+            Codeurge — Results
           </div>
           <button
             className="nb-btn nb-btn-white nb-btn-sm"

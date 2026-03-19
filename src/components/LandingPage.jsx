@@ -92,8 +92,8 @@ export function LandingPage() {
           Codeurge
           <span
             style={{
-              width: 14,
-              height: 14,
+              width: 24,
+              height: 24,
               borderRadius: "999px",
               background: NB.yellow,
               border: `2px solid ${NB.black}`,
