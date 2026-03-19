@@ -3,6 +3,7 @@ import { NB } from "../constants/theme.js";
 import { injectCSS } from "../utils/styles.js";
 import { Shapes } from "./Shapes.jsx";
 import { useEffect } from "react";
+import { FaStar } from "react-icons/fa";
 
 export function LandingPage() {
     const navigate = useNavigate();
@@ -39,7 +40,7 @@ export function LandingPage() {
 
             {/* Announcement */}
             <div className="bg-black text-white text-center px-5 py-3 flex justify-center items-center gap-4 text-sm font-medium">
-                <span>✨ Practice with authentic code snippets from 6 programming languages</span>
+                <span>Practice with authentic code snippets from 6 programming languages</span>
                 <button
                     onClick={() => navigate("/test")}
                     className="
@@ -87,7 +88,7 @@ export function LandingPage() {
             active:translate-x-[3px] active:translate-y-[3px] active:shadow-[1px_1px_0_black]
             "
                     >
-                        ⭐ Star on GitHub
+                        <FaStar /> Star on GitHub
                     </button>
                 </div>
             </nav>
