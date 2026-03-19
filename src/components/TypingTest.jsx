@@ -58,18 +58,31 @@ export function TypingTest() {
     clearInterval(wpmRef.current);
     setFinished(true);
 
+    const totalTyped = input.length;
+    const correctChars = correctRef.current;
+    const elapsed = elapsedRef.current || 1;
+
+    const finalWpm = calcWPM(correctChars, elapsed);
+
+    const updatedHistory = [
+      ...wpmHistory,
+      { t: elapsed, wpm: finalWpm },
+    ];
+
+    setWpmHistory(updatedHistory);
+
     const reportData = {
-      wpm: calcWPM(correct, elapsedRef.current || 1),
-      accuracy: calcAcc(correct, input.length),
+      wpm: finalWpm,
+      accuracy: calcAcc(correctChars, totalTyped),
       duration,
       lang,
-      wpmHistory,
-      totalTyped: input.length,
-      correct,
+      wpmHistory: updatedHistory,
+      totalTyped,
+      correct: correctChars,
     };
 
     navigate("/report", { state: reportData });
-  }, [lang, navigate, correct, input.length, duration, wpmHistory]);
+  }, [lang, navigate, input.length, duration, wpmHistory]);
 
   /* ================= RESET ================= */
   const reset = useCallback((l, d) => {
@@ -99,6 +112,8 @@ export function TypingTest() {
   /* ================= TIMER ================= */
   useEffect(() => {
     if (!started) return;
+
+    setWpmHistory([{ t: 0, wpm: 0 }]);
 
     timerRef.current = setInterval(() => {
       elapsedRef.current += 1;
@@ -133,7 +148,7 @@ export function TypingTest() {
       clearInterval(timerRef.current);
       clearInterval(wpmRef.current);
     };
-  }, [started, doFinish]);
+  }, [started]);
 
   /* ================= INDENTATION ================= */
   const getNextLineIndent = (pos) => {
@@ -160,6 +175,7 @@ export function TypingTest() {
 
     if (e.key === "Enter") {
       e.preventDefault();
+      if (!started) setStarted(true);
       processInput(input + "\n" + getNextLineIndent(input.length));
     }
   };
@@ -167,7 +183,7 @@ export function TypingTest() {
   const processInput = (val) => {
     if (doneRef.current || val.length > snippet.length) return;
 
-    if (!started && val.length > 0) setStarted(true);
+    if (!started) setStarted(true);
 
     setInput(val);
 
@@ -187,7 +203,8 @@ export function TypingTest() {
   };
 
   const cursorPos = input.length;
-  const currentWPM = started ? calcWPM(correct, duration - timeLeft || 1) : 0;
+  const elapsed = duration - timeLeft;
+  const currentWPM = started ? calcWPM(correctRef.current, elapsed || 1) : 0;
   const currentAcc = input.length > 0 ? calcAcc(correct, input.length) : 100;
 
   return (
@@ -313,37 +330,46 @@ export function TypingTest() {
         </div>
 
         {/* Code */}
-        <div className="border-2 rounded border-black shadow-[4px_4px_0_black] p-4 min-h-[180px] whitespace-pre leading-8 overflow-x-auto">
-          {snippet.split("").map((ch, i) => {
-            const isTyped = i < cursorPos;
-            const isErr = errorSet.has(i);
-            const isCursor = i === cursorPos;
-
-            return (
-              <span key={i} className="relative">
-
-                {isCursor && (
-                  <span className="absolute left-0 top-0 w-[2px] h-full bg-black cursor-blink" />
-                )}
-
-                <span
-                  className={
-                    isTyped
-                      ? isErr
-                        ? "text-red-500 underline decoration-wavy"
-                        : "text-black font-semibold"
-                      : "text-gray-400"
-                  }
-                >
-                  {ch}
-                </span>
-              </span>
-            );
-          })}
-
-          {cursorPos === snippet.length && (
-            <span className="inline-block w-[2px] h-5 bg-black cursor-blink ml-[1px]" />
+        <div className="relative border-2 rounded border-black shadow-[4px_4px_0_black] p-4 min-h-[180px] whitespace-pre leading-8 overflow-x-auto">
+          {!started && (
+            <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10">
+              <div className="text-center">
+                <div className="text-lg font-bold text-gray-700">Press Enter to start typing</div>
+              </div>
+            </div>
           )}
+          <div className={started ? "" : "blur-sm"}>
+            {snippet.split("").map((ch, i) => {
+              const isTyped = i < cursorPos;
+              const isErr = errorSet.has(i);
+              const isCursor = i === cursorPos;
+
+              return (
+                <span key={i} className="relative">
+
+                  {isCursor && (
+                    <span className="absolute left-0 top-0 w-[2px] h-full bg-black cursor-blink" />
+                  )}
+
+                  <span
+                    className={
+                      isTyped
+                        ? isErr
+                          ? "text-red-500 underline decoration-wavy"
+                          : "text-black font-semibold"
+                        : "text-gray-400"
+                    }
+                  >
+                    {ch}
+                  </span>
+                </span>
+              );
+            })}
+
+            {cursorPos === snippet.length && (
+              <span className="inline-block w-[2px] h-5 bg-black cursor-blink ml-[1px]" />
+            )}
+          </div>
         </div>
 
         {/* Footer */}
