@@ -240,7 +240,7 @@ export function LandingPage() {
                         className="w-full max-w-5xl bg-[#FAFAF8] border-2 border-black rounded-xl shadow-[8px_8px_0_black] overflow-hidden animate-[demoPop_0.32s_cubic-bezier(0.22,1,0.36,1)] origin-center"
                         onClick={(event) => event.stopPropagation()}
                     >
-                        <div className="flex items-center justify-between px-5 py-4 border-b-2 border-black bg-white">
+                        <div className="flex items-center justify-between px-5 py-2 border-b-2 border-black bg-white">
                             <div>
                                 <div className="text-lg font-extrabold">Codeurge Demo</div>
                                 <div className="text-sm text-gray-500">
@@ -249,16 +249,10 @@ export function LandingPage() {
                             </div>
 
                             <div className="flex items-center gap-3">
-                                <button
-                                    onClick={() => window.open(DEMO_AUDIO_URL, "_blank", "noopener,noreferrer")}
-                                    className="border-2 border-black px-3 py-1 bg-yellow-400 font-bold shadow-[3px_3px_0_black] rounded-md transition hover:-translate-x-[2px] hover:-translate-y-[2px] hover:shadow-[5px_5px_0_black] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
-                                >
-                                    Play With Sound
-                                </button>
 
                                 <button
                                     onClick={() => setIsDemoOpen(false)}
-                                    className="border-2 border-black px-3 py-1 bg-white font-bold shadow-[3px_3px_0_black] rounded-md transition hover:-translate-x-[2px] hover:-translate-y-[2px] hover:shadow-[5px_5px_0_black] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
+                                    className="border-2 border-black px-3 py-1 hover:bg-gray-100 bg-white font-bold shadow-[3px_3px_0_black] rounded-md transition hover:-translate-x-[2px] hover:-translate-y-[2px] hover:shadow-[5px_5px_0_black] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
                                 >
                                     Close
                                 </button>
