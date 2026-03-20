@@ -1,9 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { NB } from "../constants/theme.js";
 import { LANGUAGES, DURATIONS } from "../constants/snippets.js";
 import { injectCSS } from "../utils/styles.js";
-import { getUniqueSnippet, calcWPM, calcAcc } from "../utils/functions.js";
+import {
+  calcAcc,
+  calcWPM,
+  getKeystrokeStats,
+  getTypingBreakdown,
+  getUniqueSnippet,
+} from "../utils/functions.js";
+
 
 export function TypingTest() {
   const navigate = useNavigate();
@@ -11,6 +17,7 @@ export function TypingTest() {
   useEffect(() => {
     injectCSS();
   }, []);
+
   const [lang, setLang] = useState("javascript");
   const [duration, setDuration] = useState(60);
   const [snippet, setSnippet] = useState(() => getUniqueSnippet("javascript"));
@@ -21,6 +28,7 @@ export function TypingTest() {
   const [wpmHistory, setWpmHistory] = useState([]);
   const [errorSet, setErrorSet] = useState(new Set());
   const [correct, setCorrect] = useState(0);
+  const [typedChars, setTypedChars] = useState(0);
 
   const inputRef = useRef(null);
   const timeLeftRef = useRef(duration);
@@ -28,63 +36,84 @@ export function TypingTest() {
   const wpmRef = useRef(null);
   const elapsedRef = useRef(0);
   const correctRef = useRef(0);
+  const wpmHistoryRef = useRef([]);
+  const inputValueRef = useRef("");
+
+  // Track raw character keystrokes separately from the visible text.
+  const totalKeystrokesRef = useRef(0);
+  const correctKeystrokesRef = useRef(0);
   const doneRef = useRef(false);
 
-  /* ================= CURSOR BLINK ================= */
+  /* ─── cursor blink ─── */
   useEffect(() => {
     timeLeftRef.current = duration;
     setTimeLeft(duration);
   }, [duration]);
+
   useEffect(() => {
     const style = document.createElement("style");
     style.innerHTML = `
       @keyframes blinkCursor {
         0%,50%,100% { opacity: 1; }
-        25%,75% { opacity: 0; }
+        25%,75%     { opacity: 0; }
       }
-      .cursor-blink {
-        animation: blinkCursor 1.5s step-end infinite;
-      }
+      .cursor-blink { animation: blinkCursor 1.5s step-end infinite; }
     `;
     document.head.appendChild(style);
   }, []);
 
-  /* ================= FINISH ================= */
-  const doFinish = useCallback(() => {
-    if (doneRef.current) return;
-    doneRef.current = true;
+  /* ─── finish ─── */
+  const doFinish = useCallback(
+    (finalInput) => {
+      if (doneRef.current) return;
+      doneRef.current = true;
 
-    clearInterval(timerRef.current);
-    clearInterval(wpmRef.current);
-    setFinished(true);
+      clearInterval(timerRef.current);
+      clearInterval(wpmRef.current);
+      setFinished(true);
 
-    const totalTyped = input.length;
-    const correctChars = correctRef.current;
-    const elapsed = elapsedRef.current || 1;
+      const typed = finalInput ?? inputValueRef.current;
+      const breakdown = getTypingBreakdown(typed, snippet);
 
-    const finalWpm = calcWPM(correctChars, elapsed);
+      // elapsed is how many seconds actually passed (capped at duration)
+      const elapsed = Math.max(1, duration - timeLeftRef.current);
 
-    const updatedHistory = [
-      ...wpmHistory,
-      { t: elapsed, wpm: finalWpm },
-    ];
+      const finalWpm = calcWPM(breakdown.correct, elapsed);
+      const finalAcc = calcAcc(
+        correctKeystrokesRef.current,
+        totalKeystrokesRef.current
+      );
 
-    setWpmHistory(updatedHistory);
+      const lastPoint = wpmHistoryRef.current[wpmHistoryRef.current.length - 1];
+      const updatedHistory =
+        lastPoint?.t === elapsed && lastPoint?.wpm === finalWpm
+          ? wpmHistoryRef.current
+          : [...wpmHistoryRef.current, { t: elapsed, wpm: finalWpm }];
 
-    const reportData = {
-      wpm: finalWpm,
-      accuracy: calcAcc(correctChars, totalTyped),
-      duration,
-      lang,
-      wpmHistory: updatedHistory,
-      totalTyped,
-      correct: correctChars,
-    };
+      wpmHistoryRef.current = updatedHistory;
+      setWpmHistory(updatedHistory);
 
-    navigate("/report", { state: reportData });
-  }, [lang, navigate, input.length, duration, wpmHistory]);
+      navigate("/report", {
+        state: {
+          wpm: finalWpm,
+          accuracy: finalAcc,
+          duration,
+          elapsed,
+          lang,
+          wpmHistory: updatedHistory,
+          chars: breakdown.correct,
+          correct: breakdown.correct,
+          incorrect: breakdown.incorrect,
+          missed: breakdown.missed,
+          extra: breakdown.extra,
+          errors: breakdown.errors,
+        },
+      });
+    },
+    [snippet, duration, lang, navigate]
+  );
 
-  /* ================= RESET ================= */
+  /* ─── reset ─── */
   const reset = useCallback((l, d) => {
     clearInterval(timerRef.current);
     clearInterval(wpmRef.current);
@@ -92,15 +121,21 @@ export function TypingTest() {
     doneRef.current = false;
     elapsedRef.current = 0;
     correctRef.current = 0;
+    totalKeystrokesRef.current = 0;
+    correctKeystrokesRef.current = 0;
+    wpmHistoryRef.current = [];
     timeLeftRef.current = d;
 
     setSnippet(getUniqueSnippet(l));
     setInput("");
+    inputValueRef.current = "";
     setStarted(false);
     setTimeLeft(d);
     setFinished(false);
     setWpmHistory([]);
     setErrorSet(new Set());
+    setCorrect(0);
+    setTypedChars(0);
 
     setTimeout(() => inputRef.current?.focus(), 60);
   }, []);
@@ -109,24 +144,24 @@ export function TypingTest() {
     setTimeout(() => inputRef.current?.focus(), 100);
   }, []);
 
-  /* ================= TIMER ================= */
+  /* ─── timer + live WPM graph ─── */
   useEffect(() => {
     if (!started) return;
 
-    setWpmHistory([{ t: 0, wpm: 0 }]);
+    // Seed graph at t=0
+    const initialHistory = [{ t: 0, wpm: 0 }];
+    wpmHistoryRef.current = initialHistory;
+    setWpmHistory(initialHistory);
 
     timerRef.current = setInterval(() => {
       elapsedRef.current += 1;
-
       timeLeftRef.current -= 1;
 
       if (timeLeftRef.current <= 0) {
         timeLeftRef.current = 0;
         setTimeLeft(0);
-
         clearInterval(timerRef.current);
         clearInterval(wpmRef.current);
-
         setTimeout(() => doFinish(), 0);
         return;
       }
@@ -134,40 +169,46 @@ export function TypingTest() {
       setTimeLeft(timeLeftRef.current);
     }, 1000);
 
+    // Push a WPM data point every 2 seconds for the graph
     wpmRef.current = setInterval(() => {
-      setWpmHistory((prev) => [
-        ...prev,
-        {
-          t: elapsedRef.current,
-          wpm: calcWPM(correctRef.current, elapsedRef.current),
-        },
-      ]);
+      const elapsed = elapsedRef.current;
+      const wpm = calcWPM(correctRef.current, elapsed);
+
+      setWpmHistory((prev) => {
+        const lastPoint = prev[prev.length - 1];
+        if (lastPoint?.t === elapsed) return prev;
+
+        const nextHistory = [...prev, { t: elapsed, wpm }];
+        wpmHistoryRef.current = nextHistory;
+        return nextHistory;
+      });
     }, 2000);
 
     return () => {
       clearInterval(timerRef.current);
       clearInterval(wpmRef.current);
     };
-  }, [started]);
+  }, [started]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* ================= INDENTATION ================= */
+  /* ─── indentation helper ─── */
   const getNextLineIndent = (pos) => {
     const nextNewline = snippet.indexOf("\n", pos);
     if (nextNewline === -1) return "";
-
     let indent = "";
     let i = nextNewline + 1;
-
     while (i < snippet.length && (snippet[i] === " " || snippet[i] === "\t")) {
-      indent += snippet[i];
-      i++;
+      indent += snippet[i++];
     }
-
     return indent;
   };
 
-  /* ================= INPUT ================= */
+  /* ─── input handling ─── */
   const handleKeyDown = (e) => {
+    if (!started && e.key !== "Enter") {
+      e.preventDefault();
+      return;
+    }
+
     if (e.key === "Tab") {
       e.preventDefault();
       processInput(input + "    ");
@@ -175,42 +216,58 @@ export function TypingTest() {
 
     if (e.key === "Enter") {
       e.preventDefault();
-      if (!started) setStarted(true);
+      if (!started) {
+        setStarted(true);
+        return;
+      }
       processInput(input + "\n" + getNextLineIndent(input.length));
     }
   };
 
   const processInput = (val) => {
+    if (!started) return;
     if (doneRef.current || val.length > snippet.length) return;
 
-    if (!started) setStarted(true);
-
-    setInput(val);
-
-    const errs = new Set();
-    let correctCount = 0;
-
-    for (let i = 0; i < val.length; i++) {
-      if (val[i] === snippet[i]) correctCount++;
-      else errs.add(i);
+    const keystrokeStats = getKeystrokeStats(input, val, snippet);
+    if (keystrokeStats.totalKeystrokes > 0) {
+      totalKeystrokesRef.current += keystrokeStats.totalKeystrokes;
+      correctKeystrokesRef.current += keystrokeStats.correctKeystrokes;
     }
 
-    correctRef.current = correctCount;
-    setCorrect(correctCount);
+    setInput(val);
+    inputValueRef.current = val;
+    setTypedChars(val.length);
+
+    const errs = new Set();
+    const breakdown = getTypingBreakdown(val, snippet);
+
+    for (let i = 0; i < val.length; i++) {
+      if (val[i] !== snippet[i]) errs.add(i);
+    }
+
+    correctRef.current = breakdown.correct;
+    setCorrect(breakdown.correct);
     setErrorSet(errs);
 
-    if (val === snippet) setTimeout(() => doFinish(), 0);
+    if (val === snippet) setTimeout(() => doFinish(val), 0);
   };
 
+  /* ─── derived display values ─── */
   const cursorPos = input.length;
   const elapsed = duration - timeLeft;
+
+  // Live WPM: correctChars / 5 / elapsed-minutes  (MonkeyType formula)
   const currentWPM = started ? calcWPM(correctRef.current, elapsed || 1) : 0;
-  const currentAcc = input.length > 0 ? calcAcc(correct, input.length) : 100;
+
+  // Live accuracy: based on total raw keystrokes so far
+  const currentAcc =
+    totalKeystrokesRef.current > 0
+      ? calcAcc(correctKeystrokesRef.current, totalKeystrokesRef.current)
+      : 100;
 
   return (
     <div className="min-h-screen font-[Space_Grotesk] text-black">
-
-      {/* Hidden input */}
+      {/* Hidden textarea captures all keyboard input */}
       <textarea
         ref={inputRef}
         value={input}
@@ -223,7 +280,6 @@ export function TypingTest() {
         className="max-w-[860px] mx-auto px-6 pt-6 pb-14"
         onClick={() => inputRef.current?.focus()}
       >
-
         {/* Header */}
         <div className="flex justify-between items-center mb-6 pb-4 border-b-2 border-black">
           <div className="flex items-center gap-2 text-xl font-extrabold">
@@ -252,56 +308,40 @@ export function TypingTest() {
 
         {/* Controls */}
         <div className="mb-5">
-          <div className="text-xs font-bold text-gray-500 uppercase mb-2">
-            Language
-          </div>
-
+          <div className="text-xs font-bold text-gray-500 uppercase mb-2">Language</div>
           <div className="flex flex-wrap gap-2 mb-4">
             {LANGUAGES.map((l) => (
               <button
                 key={l.id}
                 className={`
-                border-2 border-black rounded px-3 cursor-pointer py-1 text-sm font-bold transition
-
-                ${lang === l.id
+                  border-2 border-black rounded px-3 cursor-pointer py-1 text-sm font-bold transition
+                  ${lang === l.id
                     ? "bg-yellow-400 translate-x-[3px] translate-y-[3px] shadow-[2px_2px_0_black]"
                     : "bg-white shadow-[3px_3px_0_black] hover:-translate-x-[2px] hover:-translate-y-[2px] hover:shadow-[5px_5px_0_black]"
                   }
-
-                active:translate-x-[3px] active:translate-y-[3px] active:shadow-none
+                  active:translate-x-[3px] active:translate-y-[3px] active:shadow-none
                 `}
-                onClick={() => {
-                  setLang(l.id);
-                  reset(l.id, duration);
-                }}
+                onClick={() => { setLang(l.id); reset(l.id, duration); }}
               >
                 {l.label}
               </button>
             ))}
           </div>
 
-          <div className="text-xs font-bold text-gray-500 uppercase mb-2">
-            Duration
-          </div>
-
+          <div className="text-xs font-bold text-gray-500 uppercase mb-2">Duration</div>
           <div className="flex gap-2">
             {DURATIONS.map((d) => (
               <button
                 key={d}
                 className={`
-                border-2 border-black rounded px-3 py-1 text-sm font-bold transition
-
-                ${duration === d
+                  border-2 border-black rounded px-3 py-1 text-sm font-bold transition
+                  ${duration === d
                     ? "bg-yellow-400 translate-x-[3px] translate-y-[3px] shadow-[2px_2px_0_black]"
                     : "bg-white shadow-[3px_3px_0_black] hover:-translate-x-[2px] hover:-translate-y-[2px] hover:shadow-[5px_5px_0_black]"
                   }
-
-                active:translate-x-[3px] active:translate-y-[3px] active:shadow-none
+                  active:translate-x-[3px] active:translate-y-[3px] active:shadow-none
                 `}
-                onClick={() => {
-                  setDuration(d);
-                  reset(lang, d);
-                }}
+                onClick={() => { setDuration(d); reset(lang, d); }}
               >
                 {d}s
               </button>
@@ -311,25 +351,25 @@ export function TypingTest() {
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3 mb-4">
-          {[{ label: "WPM", value: currentWPM },
-          { label: "Accuracy", value: `${currentAcc}%` },
-          { label: "Time Left", value: `${timeLeft}s` }
+          {[
+            { label: "WPM", value: currentWPM },
+            { label: "Accuracy", value: `${currentAcc}%` },
+            { label: "Time Left", value: `${timeLeft}s` },
           ].map((item, i) => (
-            <div key={i}
+            <div
+              key={i}
               className="border-2 rounded border-black px-4 py-3
               shadow-[3px_3px_0_black]
               hover:-translate-x-[3px] hover:-translate-y-[3px]
               hover:shadow-[6px_6px_0_black] transition-all duration-150"
             >
-              <div className="text-xs font-bold text-gray-500 uppercase mb-1">
-                {item.label}
-              </div>
+              <div className="text-xs font-bold text-gray-500 uppercase mb-1">{item.label}</div>
               <div className="text-3xl font-extrabold">{item.value}</div>
             </div>
           ))}
         </div>
 
-        {/* Code */}
+        {/* Code display */}
         <div className="relative border-2 rounded border-black shadow-[4px_4px_0_black] p-4 min-h-[180px] whitespace-pre leading-8 overflow-x-auto">
           {!started && (
             <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10">
@@ -346,11 +386,9 @@ export function TypingTest() {
 
               return (
                 <span key={i} className="relative">
-
                   {isCursor && (
                     <span className="absolute left-0 top-0 w-[2px] h-full bg-black cursor-blink" />
                   )}
-
                   <span
                     className={
                       isTyped
@@ -365,7 +403,6 @@ export function TypingTest() {
                 </span>
               );
             })}
-
             {cursorPos === snippet.length && (
               <span className="inline-block w-[2px] h-5 bg-black cursor-blink ml-[1px]" />
             )}
@@ -377,8 +414,8 @@ export function TypingTest() {
           {!started
             ? "Click and start typing"
             : finished
-              ? "Complete!"
-              : `${errorSet.size} errors`}
+            ? "Complete!"
+            : `${Math.max(0, typedChars - correct)} errors`}
         </div>
       </div>
     </div>

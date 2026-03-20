@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   AreaChart,
@@ -28,18 +28,70 @@ export function Report() {
   const navigate = useNavigate();
   const location = useLocation();
   const data = location.state;
+  const [shareStatus, setShareStatus] = useState("");
 
   useEffect(() => {
     injectCSS();
   }, []);
 
-  const { wpm, accuracy, duration, lang, wpmHistory, totalTyped, correct } =
-    data;
+  useEffect(() => {
+    if (!data) navigate("/");
+  }, [data, navigate]);
 
-  const errors = totalTyped - correct;
+  if (!data) return null;
+
+  const {
+    wpm,
+    accuracy,
+    duration,
+    elapsed = duration,
+    lang,
+    wpmHistory,
+    chars = 0,
+    correct = 0,
+    incorrect = 0,
+    missed = 0,
+    extra = 0,
+    errors = incorrect + missed + extra,
+  } = data;
+
+  const sampledWpm = wpmHistory.filter((point) => point.t > 0);
+  const averageWpm =
+    sampledWpm.length > 0
+      ? Math.round(
+          sampledWpm.reduce((sum, point) => sum + point.wpm, 0) /
+            sampledWpm.length
+        )
+      : wpm;
+
+  const averagedHistory =
+    wpmHistory.length > 0
+      ? wpmHistory.map((point, index) => {
+          const slice = wpmHistory.slice(0, index + 1).filter((item) => item.t > 0);
+          const averagedPointWpm =
+            slice.length > 0
+              ? Math.round(
+                  slice.reduce((sum, item) => sum + item.wpm, 0) / slice.length
+                )
+              : 0;
+
+          return {
+            ...point,
+            wpm: averagedPointWpm,
+          };
+        })
+      : [];
 
   const grade =
-    wpm >= 80 ? "S" : wpm >= 60 ? "A" : wpm >= 45 ? "B" : wpm >= 30 ? "C" : "D";
+    averageWpm >= 80
+      ? "S"
+      : averageWpm >= 60
+      ? "A"
+      : averageWpm >= 45
+      ? "B"
+      : averageWpm >= 30
+      ? "C"
+      : "D";
 
   const gradeColors = {
     S: "#00C853",
@@ -60,13 +112,28 @@ export function Report() {
   const gc = gradeColors[grade];
 
   const chartData =
-    wpmHistory.length > 1
-      ? wpmHistory
+    averagedHistory.length > 1
+      ? averagedHistory
       : [
           { t: 0, wpm: 0 },
-          { t: Math.floor(duration / 2), wpm: Math.floor(wpm / 2) },
-          { t: duration, wpm },
+          { t: Math.max(1, Math.floor(elapsed / 2)), wpm: Math.floor(wpm / 2) },
+          { t: Math.max(1, elapsed), wpm: averageWpm },
         ];
+
+  const handleShare = async () => {
+    const shareUrl = `${window.location.origin}/test`;
+
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShareStatus("Link copied");
+    } catch {
+      setShareStatus("Copy failed");
+    }
+
+    window.setTimeout(() => {
+      setShareStatus("");
+    }, 2000);
+  };
 
   return (
     <div className="min-h-screen font-[Space_Grotesk] text-[#0D0D0D]">
@@ -111,13 +178,13 @@ export function Report() {
 
           <div className="flex-1 grid grid-cols-2 gap-2.5">
             {[
-              { label: "WPM", value: wpm, color: "text-black" },
+              { label: "WPM", value: averageWpm, color: "text-black" },
               {
                 label: "Accuracy",
                 value: `${accuracy}%`,
                 color: accuracy > 90 ? "text-green-600" : "text-yellow-600",
               },
-              { label: "Chars", value: totalTyped, color: "text-black" },
+              { label: "Chars", value: correct, color: "text-black" },
               {
                 label: "Errors",
                 value: errors,
@@ -191,6 +258,8 @@ export function Report() {
                   stroke={NB.black}
                   strokeWidth={2.5}
                   fill="url(#nb-grad)"
+                  dot={{ r: 3, strokeWidth: 1, fill: NB.black }}
+                  activeDot={{ r: 4, strokeWidth: 1, fill: NB.black }}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -239,6 +308,13 @@ export function Report() {
             onClick={() => navigate("/")}
           >
             ← Home
+          </button>
+
+          <button
+            className="flex-1 border-2 border-black bg-white py-3 cursor-pointer hover:bg-gray-100 font-bold shadow-[3px_3px_0_black] rounded-md hover:shadow-[5px_5px_0_black] active:translate-x-1 active:translate-y-1 active:shadow-[1px_1px_0_black] transition-all duration-200"
+            onClick={handleShare}
+          >
+            {shareStatus || "Share"}
           </button>
         </div>
       </div>

@@ -205,3 +205,4 @@ export const LANGUAGES = [
   { id: "cpp", label: "C++" },
 ];
 export const DURATIONS = [15, 30, 60, 120];
+        

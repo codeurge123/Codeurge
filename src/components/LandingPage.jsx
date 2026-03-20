@@ -62,17 +62,7 @@ export function LandingPage() {
                 </div>
 
                 <div className="flex gap-3">
-                    <button
-                        onClick={() => navigate("/test")}
-                        className="
-            border-2 border-black px-3 py-1 bg-white font-bold
-            shadow-[3px_3px_0_black] transition
-            hover:-translate-x-[2px] hover:-translate-y-[2px] rounded-md hover:shadow-[4px_4px_0_black]
-            active:translate-x-[3px] active:translate-y-[3px] active:shadow-[1px_1px_0_black]
-            "
-                    >
-                        Start Test
-                    </button>
+                    
 
                     <button
                         onClick={() =>
