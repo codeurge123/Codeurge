@@ -85,7 +85,7 @@ export function LandingPage() {
                 </div>
 
                 <div className="flex gap-3">
-                    
+
 
                     <button
                         onClick={() =>
@@ -244,7 +244,7 @@ export function LandingPage() {
                             <div>
                                 <div className="text-lg font-extrabold">Codeurge Demo</div>
                                 <div className="text-sm text-gray-500">
-                                    Watch it here, or open the full player for reliable sound
+                                    Take a quick walkthrough of the product
                                 </div>
                             </div>
 
