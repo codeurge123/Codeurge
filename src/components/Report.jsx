@@ -125,10 +125,27 @@ export function Report() {
   const handleShare = async () => {
     try {
       setShareStatus("Preparing...");
-      const dataUrl = await toPng(reportRef.current, {
+      const exportNode = reportRef.current;
+      if (!exportNode) {
+        throw new Error("Missing report node");
+      }
+
+      const exportWidth = exportNode.scrollWidth;
+      const exportHeight = exportNode.scrollHeight;
+
+      const dataUrl = await toPng(exportNode, {
         cacheBust: true,
         pixelRatio: 2,
         backgroundColor: "#fafaf8",
+        width: exportWidth,
+        height: exportHeight,
+        canvasWidth: exportWidth * 2,
+        canvasHeight: exportHeight * 2,
+        style: {
+          margin: "0",
+          width: `${exportWidth}px`,
+          height: `${exportHeight}px`,
+        },
         filter: (node) =>
           !(node instanceof HTMLElement && node.dataset.exportIgnore === "true"),
       });
