@@ -1,16 +1,39 @@
 import { useNavigate } from "react-router-dom";
-import { NB } from "../constants/theme.js";
 import { injectCSS } from "../utils/styles.js";
 import { Shapes } from "./Shapes.jsx";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { FaStar } from "react-icons/fa";
+
+const DEMO_URL =
+    "https://drive.google.com/file/d/1b-bZ9YWCaB1WtTSd6fTtQFzHPemM6Fyt/preview";
+const DEMO_AUDIO_URL =
+    "https://drive.google.com/file/d/1b-bZ9YWCaB1WtTSd6fTtQFzHPemM6Fyt/view";
 
 export function LandingPage() {
     const navigate = useNavigate();
+    const [isDemoOpen, setIsDemoOpen] = useState(false);
 
     useEffect(() => {
         injectCSS();
     }, []);
+
+    useEffect(() => {
+        if (!isDemoOpen) return undefined;
+
+        document.body.style.overflow = "hidden";
+
+        const handleKeyDown = (event) => {
+            if (event.key === "Escape") {
+                setIsDemoOpen(false);
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => {
+            document.body.style.overflow = "";
+            window.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [isDemoOpen]);
 
     const features = [
         {
@@ -116,7 +139,7 @@ export function LandingPage() {
                         </button>
 
                         <button
-                            onClick={() => navigate("/test")}
+                            onClick={() => setIsDemoOpen(true)}
                             className="
               border-2 border-black bg-white px-4 py-2 font-bold text-lg
               shadow-[4px_4px_0_black] transition
@@ -207,6 +230,52 @@ export function LandingPage() {
                     Start Your First Test
                 </button>
             </div>
+
+            {isDemoOpen && (
+                <div
+                    className="fixed inset-0 z-50 bg-black/60 px-4 py-6 flex items-center justify-center animate-[fadeIn_0.25s_ease-out]"
+                    onClick={() => setIsDemoOpen(false)}
+                >
+                    <div
+                        className="w-full max-w-5xl bg-[#FAFAF8] border-2 border-black rounded-xl shadow-[8px_8px_0_black] overflow-hidden animate-[demoPop_0.32s_cubic-bezier(0.22,1,0.36,1)] origin-center"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between px-5 py-4 border-b-2 border-black bg-white">
+                            <div>
+                                <div className="text-lg font-extrabold">Codeurge Demo</div>
+                                <div className="text-sm text-gray-500">
+                                    Watch it here, or open the full player for reliable sound
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => window.open(DEMO_AUDIO_URL, "_blank", "noopener,noreferrer")}
+                                    className="border-2 border-black px-3 py-1 bg-yellow-400 font-bold shadow-[3px_3px_0_black] rounded-md transition hover:-translate-x-[2px] hover:-translate-y-[2px] hover:shadow-[5px_5px_0_black] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
+                                >
+                                    Play With Sound
+                                </button>
+
+                                <button
+                                    onClick={() => setIsDemoOpen(false)}
+                                    className="border-2 border-black px-3 py-1 bg-white font-bold shadow-[3px_3px_0_black] rounded-md transition hover:-translate-x-[2px] hover:-translate-y-[2px] hover:shadow-[5px_5px_0_black] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="bg-black">
+                            <iframe
+                                title="Codeurge Demo"
+                                src={DEMO_URL}
+                                className="w-full h-[70vh] min-h-[420px]"
+                                allow="autoplay; fullscreen"
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
