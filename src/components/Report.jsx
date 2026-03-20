@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { toPng } from "html-to-image";
 import {
   AreaChart,
   Area,
@@ -29,6 +30,7 @@ export function Report() {
   const location = useLocation();
   const data = location.state;
   const [shareStatus, setShareStatus] = useState("");
+  const reportRef = useRef(null);
 
   useEffect(() => {
     injectCSS();
@@ -121,13 +123,24 @@ export function Report() {
         ];
 
   const handleShare = async () => {
-    const shareUrl = `${window.location.origin}/test`;
-
     try {
-      await navigator.clipboard.writeText(shareUrl);
-      setShareStatus("Link copied");
+      setShareStatus("Preparing...");
+      const dataUrl = await toPng(reportRef.current, {
+        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: "#fafaf8",
+        filter: (node) =>
+          !(node instanceof HTMLElement && node.dataset.exportIgnore === "true"),
+      });
+
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = `codeurge-report-${lang}-${Date.now()}.png`;
+      link.click();
+
+      setShareStatus("Downloaded");
     } catch {
-      setShareStatus("Copy failed");
+      setShareStatus("Download failed");
     }
 
     window.setTimeout(() => {
@@ -137,7 +150,7 @@ export function Report() {
 
   return (
     <div className="min-h-screen font-[Space_Grotesk] text-[#0D0D0D]">
-      <div className="max-w-[720px] mx-auto px-6 pt-6 pb-14">
+      <div ref={reportRef} className="max-w-[720px] mx-auto px-6 pt-6 pb-14">
         
         {/* Header */}
         <div className="flex items-center justify-between mb-7 pb-4 border-b-2 border-black">
@@ -295,7 +308,7 @@ export function Report() {
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3">
+        <div className="flex gap-3" data-export-ignore="true">
           <button
             className="flex-1 border-2 border-black bg-yellow-400 py-3 cursor-pointer hover:bg-yellow-500 font-bold shadow-[3px_3px_0_black] hover:shadow-[5px_5px_0_black] active:translate-x-1 rounded-md active:translate-y-1 active:shadow-[1px_1px_0_black] transition-all duration-200 "
             onClick={() => navigate("/test")}
